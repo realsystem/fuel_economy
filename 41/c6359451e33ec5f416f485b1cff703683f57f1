@@ -1,0 +1,16 @@
+ocr_segment.py
+  h_5cc5edf0cd634d 1-150
+pump_ocr.py
+  h_5cc5edf0cd634d 1-314
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.24",
+  "base_commit_sha": "41c6359451e33ec5f416f485b1cff703683f57f1",
+  "prompts": {},
+  "humans": {
+    "h_5cc5edf0cd634d": {
+      "author": "Stan Egorov <segorov@paloaltonetworks.com>"
+    }
+  }
+}
