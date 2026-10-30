@@ -6,7 +6,9 @@
  *   → pick the most convincing candidate → classify fields → result
  */
 import { resolveConfig, type ProcessingConfig } from './config.ts';
-import { binarizeDisplay, cropDisplay, displayCandidates, normalize } from './ImagePreprocessor.ts';
+import {
+  binarizeDisplay, cropDisplay, displayCandidates, FALLBACK_METHODS, normalize, type BinarizeMethod,
+} from './ImagePreprocessor.ts';
 import { detectNumbers, type DetectedLine } from './NumberDetector.ts';
 import { normalizeLines, type RawLine } from './ResultNormalizer.ts';
 import type { ProcessingResult } from '../models/ProcessingResult.ts';
@@ -37,22 +39,58 @@ export function processRgba(
   // Read every display candidate; keep the one whose reading is most
   // convincing. A consistent amount/volume pair outweighs extra digits, so a
   // stray mark that adds a digit does not win over a clean reading.
-  let best: { raw: RawLine[]; score: number } | null = null;
-  for (const region of displayCandidates(gray)) {
-    const mask = binarizeDisplay(cropDisplay(gray, region), cfg);
-    const lines = detectNumbers(mask, cfg);
-    const offset = region.found ? { x: region.rect.x, y: region.rect.y } : { x: 0, y: 0 };
-    const raw = toRawLines(lines, offset, scaleToOriginal);
-    const norm = normalizeLines(raw, cfg);
-    const classified = norm.values.filter((v) => v.field !== 'unknown');
-    const score = scoreLines(lines)
-      + classified.reduce((s, v) => s + 4 * v.fieldConfidence, 0)
-      + (norm.status === 'ok' ? 4 : 0);
-    if (!best || score > best.score) best = { raw, score };
+  //
+  // The standard threshold runs first. If it gives a confident reading, that
+  // is the answer, so clean photos take exactly the original path. Otherwise
+  // the fallback methods (reflections, glare, light-on-dark displays) are
+  // tried too. A reading found only by a fallback is accepted without review
+  // only if a second method independently gives the same amount and volume:
+  // each extra method is another chance of a confident misreading.
+  const regions = displayCandidates(gray);
+  type Reading = { method: BinarizeMethod; raw: RawLine[]; score: number; ok: boolean; key: string };
+  const perMethod: Reading[] = [];
+  const tryMethod = (method: BinarizeMethod): Reading | null => {
+    let best: Reading | null = null;
+    for (const region of regions) {
+      const mask = binarizeDisplay(cropDisplay(gray, region), cfg, method);
+      const lines = detectNumbers(mask, cfg);
+      const offset = region.found ? { x: region.rect.x, y: region.rect.y } : { x: 0, y: 0 };
+      const raw = toRawLines(lines, offset, scaleToOriginal);
+      const norm = normalizeLines(raw, cfg);
+      const classified = norm.values.filter((v) => v.field !== 'unknown');
+      const score = scoreLines(lines)
+        + classified.reduce((s, v) => s + 4 * v.fieldConfidence, 0)
+        + (norm.status === 'ok' ? 4 : 0);
+      const pick = (id?: string) => norm.values.find((v) => v.id === id)?.value ?? null;
+      const key = `${pick(norm.fields.amount)}|${pick(norm.fields.volume)}`;
+      if (!best || score > best.score) best = { method, raw, score, ok: norm.status === 'ok', key };
+    }
+    if (best) perMethod.push(best);
+    return best;
+  };
+
+  const primary = tryMethod('mean');
+  let chosen = primary;
+  let uncorroborated = false;
+  if (!primary?.ok) {
+    for (const method of FALLBACK_METHODS) tryMethod(method);
+    const agreeCount = (r: Reading) => perMethod.filter((m) => m.key === r.key).length;
+    const bestOf = (rs: Reading[]) => rs.reduce<Reading | null>((p, c) => (!p || c.score > p.score ? c : p), null);
+    const primaryUsable = !!primary && !primary.key.includes('null');
+    // 1. a confident reading that another method confirms;
+    // 2. otherwise the standard reading, if it found both amount and volume;
+    // 3. otherwise the most convincing fallback reading (flagged unless confirmed).
+    chosen = bestOf(perMethod.filter((m) => m.ok && agreeCount(m) >= 2))
+      ?? (primaryUsable ? primary : bestOf(perMethod));
+    if (chosen && chosen.method !== 'mean' && chosen.ok) uncorroborated = agreeCount(chosen) < 2;
   }
 
-  const raw = best?.raw ?? [];
+  const raw = chosen?.raw ?? [];
   const norm = normalizeLines(raw, cfg);
+  if (uncorroborated && norm.status === 'ok') {
+    norm.status = 'partial';
+    norm.warnings.push('This photo was hard to read (reflection, glare or an unusual display) and only one method produced these numbers; please check them.');
+  }
   return {
     schemaVersion: 1,
     processor: PROCESSOR_ID,
@@ -82,6 +120,7 @@ function toRawLines(lines: DetectedLine[], offset: { x: number; y: number }, sca
       height: Math.round(l.box.height * scaleToOriginal),
     },
     ambiguousDigits: l.digits.flatMap((d, i) => (d.alternative ? [{ index: i, alternative: d.alternative }] : [])),
+    incomplete: l.incomplete,
   }));
 }
 

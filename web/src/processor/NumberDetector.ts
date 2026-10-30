@@ -57,6 +57,8 @@ export interface DetectedLine {
   digitHeight: number;
   /** Mean digit score. */
   confidence: number;
+  /** A digit-sized mark next to the number was discarded: a digit may be missing. */
+  incomplete: boolean;
 }
 
 interface Band { y0: number; y1: number }
@@ -89,7 +91,28 @@ export function findBands(mask: Mask, cfg: ProcessingConfig): Band[] {
       start = -1;
     }
   }
-  return bands;
+  return bands.flatMap((b) => splitTallBand(b, proj, minH, mask.height));
+}
+
+/**
+ * A reflection or streak can bridge the gap between two text lines so they
+ * show up as one tall band. As in the original pump_ocr.py, split such a
+ * band at its emptiest row in the middle section, when that row is clearly
+ * emptier than the text rows around it.
+ */
+function splitTallBand(b: Band, proj: number[], minH: number, displayH: number): Band[] {
+  const h = b.y1 - b.y0;
+  if (h < displayH * 0.42 || h < minH * 2) return [b];
+  let minY = -1, minV = Infinity;
+  for (let y = b.y0 + Math.floor(h * 0.3); y < b.y0 + Math.ceil(h * 0.7); y++) {
+    if (proj[y] < minV) { minV = proj[y]; minY = y; }
+  }
+  const rows = proj.slice(b.y0, b.y1).sort((p, q) => p - q);
+  const typical = rows[Math.floor(rows.length * 0.6)];
+  if (minY < 0 || minV > typical * 0.35) return [b];
+  const top = { y0: b.y0, y1: minY }, bottom = { y0: minY + 1, y1: b.y1 };
+  if (top.y1 - top.y0 < minH || bottom.y1 - bottom.y0 < minH) return [b];
+  return [top, bottom];
 }
 
 /** Choose the shear that best separates digits (maximises empty columns). */
@@ -232,6 +255,10 @@ function readBand(mask: Mask, labels: Int32Array, comps: Component[], band: Band
 
   type Cell = { a: number; b: number; top: number; bottom: number };
   const cells: Cell[] = [];
+  // Digit-sized marks that were set aside. If one sits right next to the
+  // number, a digit may have been lost (e.g. a washed-out leading 1), so the
+  // reading is marked incomplete instead of being trusted.
+  const discarded: Array<{ a: number; b: number }> = [];
   for (const r of merged) {
     let top = H, bottom = -1;
     for (let y = 0; y < H; y++) {
@@ -239,7 +266,10 @@ function readBand(mask: Mask, labels: Int32Array, comps: Component[], band: Band
     }
     if (bottom < 0) continue;
     const h = bottom - top + 1;
-    if (h < bandH * 0.6) continue; // fragments and minus signs are not digits
+    if (h < bandH * 0.6) { // fragments and minus signs are not digits
+      if (h >= bandH * 0.4) discarded.push(r);
+      continue;
+    }
     cells.push({ a: r.a, b: r.b, top, bottom: bottom + 1 });
   }
   if (!cells.length) return null;
@@ -261,7 +291,10 @@ function readBand(mask: Mask, labels: Int32Array, comps: Component[], band: Band
     const bottomAt = fit(cells.map((c) => c.bottom));
     const tol = median(cells.map((c) => c.bottom - c.top)) * 0.08;
     for (let i = cells.length - 1; i >= 0; i--) {
-      if (Math.abs(cells[i].top - topAt(cx[i])) > tol || Math.abs(cells[i].bottom - bottomAt(cx[i])) > tol) cells.splice(i, 1);
+      if (Math.abs(cells[i].top - topAt(cx[i])) > tol || Math.abs(cells[i].bottom - bottomAt(cx[i])) > tol) {
+        discarded.push(cells[i]);
+        cells.splice(i, 1);
+      }
     }
   }
   if (!cells.length) return null;
@@ -274,6 +307,11 @@ function readBand(mask: Mask, labels: Int32Array, comps: Component[], band: Band
     clusters[clusters.length - 1].push(cells[i]);
   }
   const main = clusters.reduce((p, c) => (c.length > p.length ? c : p));
+  for (const c of clusters) if (c !== main) discarded.push(...c);
+  const near = digitH * 0.6;
+  // Marks thinner than any digit stroke (edge highlights, hairline streaks) cannot be a lost digit.
+  const incomplete = discarded.filter((d) => d.b - d.a >= digitH * 0.08).some((d) => (d.b <= main[0].a && main[0].a - d.b <= near)
+    || (d.a >= main[main.length - 1].b && d.a - main[main.length - 1].b <= near));
   const typicalW = median(main.filter((c) => c.b - c.a > digitH * 0.35).map((c) => c.b - c.a)) || digitH * 0.55;
 
   const digits: DetectedDigit[] = main.map((c) => {
@@ -316,6 +354,7 @@ function readBand(mask: Mask, labels: Int32Array, comps: Component[], band: Band
     decimalIndex,
     box: { x: bx, y: by, width: bx2 - bx, height: by2 - by },
     digitHeight: digitH,
+    incomplete,
     confidence: digits.reduce((s2, d) => s2 + (d.char === '?' ? 0 : d.score), 0) / digits.length,
   };
 }

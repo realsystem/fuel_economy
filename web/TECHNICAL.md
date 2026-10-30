@@ -51,12 +51,17 @@ File → validate type/size → decode in worker (scaled to ≤1440 px)
      → max(R,G,B) channel, scale to 900 px
      → display candidates (bright region / inner region / whole frame)
      → adaptive threshold; remove bezel, frame lines, glare streaks, specks
-     → text lines from row projection
+       (fallback only if that reading is not confident: Sauvola threshold,
+        and inverted versions of both for light-on-dark displays)
+     → text lines from row projection; split over-tall bands at the
+       emptiest middle row (as pump_ocr.py did)
      → per line: shear search → column runs → digit cells
                  → drop cells off the fitted top/bottom edges
                  → 7-segment decode with score + runner-up
                  → decimal point = small compact blob in a gap on the baseline
-     → pick the best candidate
+                 → "incomplete" if a digit-sized mark beside the number was set aside
+     → pick the best candidate; a fallback-only reading is accepted only
+       if a second method gives the same amount and volume
      → classify: arithmetic (3 numbers) > decimal places (2 = money,
        3 = volume) > layout (amount on top)
      → plausibility of implied unit price → status ok / partial / no_numbers / error
@@ -67,28 +72,55 @@ and no global state.
 
 ## 3. Accuracy (measured, not estimated)
 
-`npm run accuracy` on the 8 photos in `images/`:
+`npm run accuracy` over `images/`, in two groups:
 
-| | |
+| | Tuning photos (`fuel*`) | Phone photos (`PXL_*`, `-49…`) |
+|---|---|---|
+| photos | 8 | 43 |
+| amount and volume both correct | 8 / 8 | **28 / 41** (+2 with unreadable amounts, scored on volume only: 2/2) |
+| accepted without review | 8, all correct | **26, all correct** |
+| flagged for review | 0 | 17 |
+| wrong but not flagged | 0 | **0** |
+
+The 43 phone photos were measured *before* any tuning on them: 27/41
+correct, with 27 accepted, all correct. Four general changes were then made
+while looking at the failures:
+
+- split over-tall line bands;
+- fallback thresholds;
+- the "possibly incomplete" check;
+- confirmation by a second method.
+
+That moved the result to 28/41. The phone-photo figures are therefore no
+longer a fully independent test. The first-pass figures are the more honest
+estimate for new pumps.
+
+The browser app gives the same accepted results as the Node scripts (checked
+by running every photo through the app in headless Chromium). Pre-filled
+values on flagged photos can differ slightly because browser image scaling is
+not byte-identical. Processing takes about 0.6 s per 12 MP photo; photos that
+need the fallback methods take up to about 1.2 s.
+
+**Why the 13 misses fail** (all were flagged for review):
+
+| Cause | Photos |
 |---|---|
-| photos | 8 |
-| amount and volume both correct | 8 |
-| incorrect values | 0 |
-| flagged for review | 1 (fuel2: a faint "ghost" top segment makes the 4 look like a 9; the reading is correct but flagged) |
-| wrong but not flagged | 0 |
+| Reflection washes out the leading digits of a 3-digit amount (175.00 → "5.00", 162.64 → "62.6") | 4 |
+| Heavy reflection or glare over most of the panel | 4 |
+| A digit misread under a reflection (174.30 → 174.36, 43.10 → 43.18) | 3 |
+| Light digits on a dark display | 2 |
 
-**Caveat:** the parameters were tuned on these same 8 photos, so this figure
-is optimistic. Two extra checks guard against over-fitting:
+`npm run robustness` re-reads all 51 photos half and double size, rotated
+±3°, blurred, darkened by 40% and as quality-30 JPEGs: 296/408 correct, with
+**1 wrong reading not flagged**: the darkened copy of a 175.00 photo read as
+115.00 (see §6, the faded "7").
 
-- `npm run robustness` re-reads the photos half and double size, rotated ±3°,
-  blurred, darkened and as quality-30 JPEGs: **61/64 correct, and all 3 misses
-  were flagged for review.**
-- The unit tests render synthetic displays with numbers not in the photo set
-  (upright, italic, different backlight colours) and check they read correctly.
+The unit tests also render synthetic displays with numbers not in the photo
+set (upright, italic, different backlight colours).
 
-Real accuracy on new pumps is unknown until more photos are added. The most
-useful next step is to collect 30–50 photos from different pumps and add them
-to `images/` with expected values.
+**The best next step for accuracy is taking photos without reflections.** A
+slight angle so you are not reflected in the screen, and shade from the sky,
+remove most of the failures above.
 
 ## 4. Ready for backend offloading
 
@@ -131,9 +163,18 @@ Not built yet, by design: backend, storage, accounts, persistence.
 - Only **7-segment** digits are read. Dot-matrix, LED-matrix, and
   proportional-font LCD displays will fail. They are mostly flagged as review
   or "no numbers".
-- Digits must be **darker than the backlight** (the usual LCD). Light-on-dark
-  displays (LED or VFD) are not handled yet; supporting them needs an inverted
-  threshold pass as an extra candidate.
+- **Light-on-dark** displays (white digits on a blue or black LCD) are tried
+  with inverted thresholds, but are not read reliably yet: 0 of the 2 in the
+  photo set. Both were flagged.
+- **Reflections** (the photographer, sky or trees mirrored in the screen) are
+  the main cause of failure on real photos. When a reflection removes a
+  digit's segments entirely, the digit cannot be recovered. The app flags the
+  reading as possibly incomplete when something digit-sized was set aside
+  next to the number.
+- A **"7" whose top bar has faded** (low light, reflection) is
+  indistinguishable from a "1" in the binary mask. This was seen once in the
+  robustness test (175.00 → 115.00, not flagged). Checking the greyscale
+  pixels where the bar should be would catch it; not done yet.
 - Faint "ghost" segments (unlit segments that are still slightly visible) can
   make a digit look like another (4/9, 7/9, 0/8). These cases are flagged.
 - Fonts whose vertical segments are much shorter than the horizontal bars may

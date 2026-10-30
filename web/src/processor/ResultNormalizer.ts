@@ -21,6 +21,8 @@ export interface RawLine {
   confidence: number;
   box: { x: number; y: number; width: number; height: number } | null;
   ambiguousDigits: Array<{ index: number; alternative: string }>;
+  /** A digit may be missing next to this number. */
+  incomplete?: boolean;
 }
 
 export interface NormalizedOutput {
@@ -60,6 +62,7 @@ function inferDecimal(v: DetectedValue, decimals: number): void {
 export function normalizeLines(lines: RawLine[], cfg: ProcessingConfig): NormalizedOutput {
   const warnings: string[] = [];
   const values = lines.map(toValue);
+  const incompleteIds = new Set(lines.flatMap((l, i) => (l.incomplete ? [values[i].id] : [])));
   const fields: ProcessingResult['fields'] = {};
   if (!values.length) return { values, fields, status: 'no_numbers', warnings: ['No numbers were found.'] };
 
@@ -129,6 +132,10 @@ export function normalizeLines(lines: RawLine[], cfg: ProcessingConfig): Normali
   }
 
   for (const v of values) {
+    if (incompleteIds.has(v.id)) {
+      v.confidence = Math.min(v.confidence, 0.6);
+      warnings.push(`A digit may be missing next to "${v.text}" (something digit-sized was found beside it but could not be read).`);
+    }
     if (v.value === null) warnings.push(`Some digits in "${v.text}" could not be read.`);
     else if (v.decimalInferred) warnings.push(`No decimal point was seen in "${v.text}"; it was placed by convention.`);
     for (const a of v.ambiguousDigits) {

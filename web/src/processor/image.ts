@@ -146,6 +146,49 @@ export function adaptiveThresholdDark(img: GrayImage, blockSize: number, c: numb
   return { width: w, height: h, data: out };
 }
 
+/**
+ * Sauvola local threshold, inverted (dark ink = 1). The threshold follows
+ * local contrast as well as local brightness, which helps where a
+ * reflection lowers the contrast between segments and backlight.
+ *   T = mean * (1 + k * (std / R - 1))
+ */
+export function sauvolaThresholdDark(img: GrayImage, blockSize: number, k = 0.25, R = 128): Mask {
+  const { width: w, height: h, data } = img;
+  const W1 = w + 1;
+  const sum = new Float64Array(W1 * (h + 1));
+  const sq = new Float64Array(W1 * (h + 1));
+  for (let y = 0; y < h; y++) {
+    let rs = 0, rq = 0;
+    for (let x = 0; x < w; x++) {
+      const v = data[y * w + x];
+      rs += v; rq += v * v;
+      sum[(y + 1) * W1 + x + 1] = sum[y * W1 + x + 1] + rs;
+      sq[(y + 1) * W1 + x + 1] = sq[y * W1 + x + 1] + rq;
+    }
+  }
+  const half = Math.max(1, Math.floor(blockSize / 2));
+  const out = new Uint8Array(w * h);
+  for (let y = 0; y < h; y++) {
+    const y0 = Math.max(0, y - half), y1 = Math.min(h, y + half + 1);
+    for (let x = 0; x < w; x++) {
+      const x0 = Math.max(0, x - half), x1 = Math.min(w, x + half + 1);
+      const n = (x1 - x0) * (y1 - y0);
+      const s = sum[y1 * W1 + x1] - sum[y0 * W1 + x1] - sum[y1 * W1 + x0] + sum[y0 * W1 + x0];
+      const q = sq[y1 * W1 + x1] - sq[y0 * W1 + x1] - sq[y1 * W1 + x0] + sq[y0 * W1 + x0];
+      const mean = s / n;
+      const std = Math.sqrt(Math.max(0, q / n - mean * mean));
+      out[y * w + x] = data[y * w + x] < mean * (1 + k * (std / R - 1)) ? 1 : 0;
+    }
+  }
+  return { width: w, height: h, data: out };
+}
+
+export function invert(img: GrayImage): GrayImage {
+  const out = new Uint8Array(img.data.length);
+  for (let i = 0; i < out.length; i++) out[i] = 255 - img.data[i];
+  return { width: img.width, height: img.height, data: out };
+}
+
 /** Global threshold: pixels >= t become 1. */
 export function thresholdBright(img: GrayImage, t: number): Mask {
   const out = new Uint8Array(img.data.length);

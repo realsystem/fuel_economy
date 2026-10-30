@@ -9,7 +9,7 @@
  */
 import type { ProcessingConfig } from './config.ts';
 import {
-  adaptiveThresholdDark, connectedComponents, crop, eraseComponents, otsuThreshold,
+  adaptiveThresholdDark, connectedComponents, crop, eraseComponents, invert, otsuThreshold, sauvolaThresholdDark,
   resize, rgbaToValue, thresholdBright, type GrayImage, type Mask, type Rect,
 } from './image.ts';
 
@@ -64,14 +64,27 @@ export function findDisplay(gray: GrayImage): DisplayRegion {
 }
 
 /**
+ * How to separate digits from the backlight:
+ *  - 'mean': adaptive mean threshold, as in pump_ocr.py (default)
+ *  - 'sauvola': contrast-aware threshold, better under reflections and glare
+ *  - '*-light': the same, for light digits on a dark display
+ */
+export type BinarizeMethod = 'mean' | 'sauvola' | 'mean-light' | 'sauvola-light';
+export const FALLBACK_METHODS: readonly BinarizeMethod[] = ['sauvola', 'mean-light', 'sauvola-light'];
+
+/**
  * Binarise the display so the digit segments become ink (1), then remove
  * blobs that cannot be part of a digit: anything touching the display edge
  * (bezel, glare borders) or spanning most of its width or height (frame
  * lines, the coloured strip some pumps have at the side of the LCD).
  */
-export function binarizeDisplay(display: GrayImage, cfg: ProcessingConfig): Mask {
+export function binarizeDisplay(display: GrayImage, cfg: ProcessingConfig, method: BinarizeMethod = 'mean'): Mask {
   const block = Math.max(15, Math.round(display.height * cfg.thresholdBlockFraction)) | 1;
-  const mask = adaptiveThresholdDark(display, block, cfg.thresholdOffset);
+  // Light-on-dark displays: invert so the digits become the dark ink.
+  const src = method.endsWith('-light') ? invert(display) : display;
+  const mask = method.startsWith('sauvola')
+    ? sauvolaThresholdDark(src, block)
+    : adaptiveThresholdDark(src, block, cfg.thresholdOffset);
   const { labels, components } = connectedComponents(mask);
   const drop = new Set<number>();
   const W = display.width, H = display.height;

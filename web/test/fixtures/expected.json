@@ -1,11 +1,255 @@
 {
-  "_note": "Ground truth for the photos in ../../../images, read by eye. lines are top to bottom as printed on the display. No display in this set shows a unit price.",
-  "fuel1.jpeg": { "lines": ["20.00", "4.348"], "amount": 20.00, "volume": 4.348 },
-  "fuel2.png":  { "lines": ["24.07", "6.362"], "amount": 24.07, "volume": 6.362 },
-  "fuel3.png":  { "lines": ["123.53", "19.927"], "amount": 123.53, "volume": 19.927 },
-  "fuel4.png":  { "lines": ["53.43", "17.465"], "amount": 53.43, "volume": 17.465 },
-  "fuel5.jpeg": { "lines": ["29.68", "9.735"], "amount": 29.68, "volume": 9.735 },
-  "fuel6.png":  { "lines": ["38.83", "9.958"], "amount": 38.83, "volume": 9.958 },
-  "fuel7.jpeg": { "lines": ["1.52", "0.361"], "amount": 1.52, "volume": 0.361 },
-  "fuel8.jpeg": { "lines": ["17.91", "4.265"], "amount": 17.91, "volume": 4.265 }
+  "_note": "Ground truth for the photos in ../../../images, read by eye (zoomed where needed). lines are top to bottom as printed on the display where given. amount null = not readable by eye; such photos are scored on volume only. fuel*.png/jpeg were the tuning set; the PXL_* and -49\u2026 phone photos were added later and first measured untuned.",
+  "fuel1.jpeg": {
+    "lines": [
+      "20.00",
+      "4.348"
+    ],
+    "amount": 20.0,
+    "volume": 4.348
+  },
+  "fuel2.png": {
+    "lines": [
+      "24.07",
+      "6.362"
+    ],
+    "amount": 24.07,
+    "volume": 6.362
+  },
+  "fuel3.png": {
+    "lines": [
+      "123.53",
+      "19.927"
+    ],
+    "amount": 123.53,
+    "volume": 19.927
+  },
+  "fuel4.png": {
+    "lines": [
+      "53.43",
+      "17.465"
+    ],
+    "amount": 53.43,
+    "volume": 17.465
+  },
+  "fuel5.jpeg": {
+    "lines": [
+      "29.68",
+      "9.735"
+    ],
+    "amount": 29.68,
+    "volume": 9.735
+  },
+  "fuel6.png": {
+    "lines": [
+      "38.83",
+      "9.958"
+    ],
+    "amount": 38.83,
+    "volume": 9.958
+  },
+  "fuel7.jpeg": {
+    "lines": [
+      "1.52",
+      "0.361"
+    ],
+    "amount": 1.52,
+    "volume": 0.361
+  },
+  "fuel8.jpeg": {
+    "lines": [
+      "17.91",
+      "4.265"
+    ],
+    "amount": 17.91,
+    "volume": 4.265
+  },
+  "-4938369499233192983_121.jpg": {
+    "amount": 46.51,
+    "volume": 10.67,
+    "note": "reflection of surroundings across the panel"
+  },
+  "PXL_20251206_033907396.jpg": {
+    "amount": 85.87,
+    "volume": 29.62
+  },
+  "PXL_20251206_034146298.jpg": {
+    "amount": 33.03,
+    "volume": 11.014
+  },
+  "PXL_20251207_033929995.jpg": {
+    "amount": 29.4,
+    "volume": 9.968
+  },
+  "PXL_20251207_034136913.jpg": {
+    "amount": 12.94,
+    "volume": 4.315
+  },
+  "PXL_20251209_014812139.jpg": {
+    "amount": 119.55,
+    "volume": 36.91
+  },
+  "PXL_20251213_174029289.jpg": {
+    "amount": 98.39,
+    "volume": 25.898
+  },
+  "PXL_20260105_015657908.jpg": {
+    "amount": 103.21,
+    "volume": 32.262
+  },
+  "PXL_20260119_231752792.jpg": {
+    "amount": 100.75,
+    "volume": 26.52
+  },
+  "PXL_20260123_052850927.jpg": {
+    "amount": 45.16,
+    "volume": 13.69
+  },
+  "PXL_20260123_053109293.jpg": {
+    "amount": 17.34,
+    "volume": 5.982
+  },
+  "PXL_20260124_034013150.jpg": {
+    "amount": 6.28,
+    "volume": 2.143
+  },
+  "PXL_20260126_020244965.jpg": {
+    "amount": 102.55,
+    "volume": 31.085
+  },
+  "PXL_20260203_234410540.jpg": {
+    "amount": 45.28,
+    "volume": 11.612
+  },
+  "PXL_20260204_044827379.jpg": {
+    "amount": 57.45,
+    "volume": 15.004
+  },
+  "PXL_20260208_193158375.jpg": {
+    "amount": 51.7,
+    "volume": 13.609
+  },
+  "PXL_20260209_013727999.jpg": {
+    "amount": 20.14,
+    "volume": 4.578,
+    "note": "light digits on a dark blue display"
+  },
+  "PXL_20260209_024617725.jpg": {
+    "amount": 59.94,
+    "volume": 13.942
+  },
+  "PXL_20260209_052428057.jpg": {
+    "amount": 59.57,
+    "volume": 14.895
+  },
+  "PXL_20260213_050637599.jpg": {
+    "amount": 40.06,
+    "volume": 10.434
+  },
+  "PXL_20260216_012540661.jpg": {
+    "amount": 33.72,
+    "volume": 9.806
+  },
+  "PXL_20260216_013009447.jpg": {
+    "amount": 124.66,
+    "volume": 32.471
+  },
+  "PXL_20260221_192819119.jpg": {
+    "amount": 43.1,
+    "volume": 9.907,
+    "note": "reflection of photographer across digits"
+  },
+  "PXL_20260309_002940429.jpg": {
+    "amount": 162.64,
+    "volume": 35.674,
+    "note": "reflection, water spots"
+  },
+  "PXL_20260313_232922723.jpg": {
+    "amount": 135.62,
+    "volume": 27.129,
+    "note": "reflection; last digit partly obscured"
+  },
+  "PXL_20260321_014543399.jpg": {
+    "amount": 20.32,
+    "volume": 4.772
+  },
+  "PXL_20260323_002334392.jpg": {
+    "amount": 175.0,
+    "volume": 35.432,
+    "note": "reflection"
+  },
+  "PXL_20260323_002436499.jpg": {
+    "amount": 4.02,
+    "volume": 0.813
+  },
+  "PXL_20260413_002724622.jpg": {
+    "amount": 175.0,
+    "volume": 34.592
+  },
+  "PXL_20260429_223233948.jpg": {
+    "amount": null,
+    "volume": 27.22,
+    "note": "top line washed out by reflection; amount not readable by eye"
+  },
+  "PXL_20260511_004840637.jpg": {
+    "amount": 175.0,
+    "volume": 33.025,
+    "note": "reflection, small display"
+  },
+  "PXL_20260511_005102602.jpg": {
+    "amount": 29.89,
+    "volume": 5.64,
+    "note": "reflection"
+  },
+  "PXL_20260712_230120809.jpg": {
+    "amount": 174.59,
+    "volume": 37.962,
+    "note": "reflection"
+  },
+  "PXL_20260727_222811353.jpg": {
+    "amount": 127.45,
+    "volume": 24.996,
+    "note": "reflection of trees in upper half"
+  },
+  "PXL_20260802_224526546.jpg": {
+    "amount": 174.5,
+    "volume": 35.619,
+    "note": "reflection"
+  },
+  "PXL_20260816_224251211.jpg": {
+    "amount": 87.32,
+    "volume": 16.795,
+    "note": "light digits on a dark display"
+  },
+  "PXL_20260819_022125460.jpg": {
+    "amount": 84.22,
+    "volume": 16.325
+  },
+  "PXL_20260831_000258461.jpg": {
+    "amount": 174.3,
+    "volume": 36.02,
+    "note": "reflection"
+  },
+  "PXL_20260918_040022219.jpg": {
+    "amount": 55.24,
+    "volume": 10.045
+  },
+  "PXL_20260921_005143247.jpg": {
+    "amount": 175.0,
+    "volume": 31.824
+  },
+  "PXL_20260921_005455177.jpg": {
+    "amount": 57.72,
+    "volume": 10.497,
+    "note": "heavy reflection"
+  },
+  "PXL_20261001_012915593.jpg": {
+    "amount": null,
+    "volume": 28.603,
+    "note": "glare over first and last amount digits; amount not readable by eye"
+  },
+  "PXL_20261030_014122633.jpg": {
+    "amount": 52.26,
+    "volume": 10.052
+  }
 }
