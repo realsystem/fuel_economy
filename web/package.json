@@ -1,0 +1,29 @@
+{
+  "name": "fuel-photo-log",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Browser-based fuel pump photo reader. All processing happens locally in the browser.",
+  "type": "module",
+  "scripts": {
+    "dev": "node build.mjs --serve",
+    "build": "node build.mjs",
+    "typecheck": "tsc --noEmit",
+    "test": "node --import tsx --test test/*.test.ts",
+    "accuracy": "tsx scripts/accuracy.ts",
+    "robustness": "tsx scripts/robustness.ts",
+    "debug-images": "tsx scripts/debug.ts"
+  },
+  "dependencies": {
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "@types/react": "^19.2.0",
+    "@types/react-dom": "^19.2.0",
+    "esbuild": "^0.28.0",
+    "sharp": "^0.35.0",
+    "tsx": "^4.20.0",
+    "typescript": "^6.0.0"
+  }
+}
